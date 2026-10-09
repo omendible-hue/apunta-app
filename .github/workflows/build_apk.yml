@@ -21,9 +21,13 @@ jobs:
           flutter-version: '3.22.3'
           channel: 'stable'
 
-      - name: Extraer proyecto del ZIP
+         - name: Extraer proyecto del ZIP
         run: |
-          unzip apunta_github.zip
+          echo "=== Archivos disponibles ==="
+          ls -la
+          ZIP=$(find . -name "*.zip" | head -1)
+          echo "ZIP encontrado: $ZIP"
+          unzip "$ZIP"
           cp -r class_tracker_app/. .
 
       - name: Instalar dependencias
