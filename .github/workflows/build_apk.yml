@@ -16,13 +16,17 @@ jobs:
         with:
           flutter-version: '3.19.6'
           channel: 'stable'
-      - name: Extraer proyecto del ZIP
+          - name: Extraer proyecto del ZIP
         run: |
           ls -la
           ZIP=$(find . -name "*.zip" | head -1)
           echo "ZIP encontrado en: $ZIP"
           unzip "$ZIP"
           cp -r class_tracker_app/. .
+          sed -i 's/shared_preferences: \^2.3.2/shared_preferences: ^2.2.3/' pubspec.yaml
+          sed -i 's/flutter_local_notifications: \^17.2.2/flutter_local_notifications: ^17.0.0/' pubspec.yaml
+          echo "=== pubspec parcheado ==="
+          grep "shared_preferences\|flutter_local_notif" pubspec.yaml
       - name: Instalar dependencias
         run: flutter pub get
       - name: Compilar APK
