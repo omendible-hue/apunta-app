@@ -25,7 +25,7 @@ jobs:
         run: |
           ZIP=$(find . -name "*.zip" | head -1)
           echo "ZIP encontrado: $ZIP"
-          unzip "$ZIP"
+          unzip -o "$ZIP"
           
 
       - name: Instalar dependencias
