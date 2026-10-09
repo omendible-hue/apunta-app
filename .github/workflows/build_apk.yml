@@ -1,41 +1,32 @@
 name: Compilar APK Apunta
-
 on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.3'
           channel: 'stable'
-
-         - name: Extraer proyecto del ZIP
+      - name: Extraer proyecto del ZIP
         run: |
-          echo "=== Archivos disponibles ==="
           ls -la
           ZIP=$(find . -name "*.zip" | head -1)
-          echo "ZIP encontrado: $ZIP"
+          echo "ZIP encontrado en: $ZIP"
           unzip "$ZIP"
           cp -r class_tracker_app/. .
-
       - name: Instalar dependencias
         run: flutter pub get
-
       - name: Compilar APK
         run: flutter build apk --debug --no-tree-shake-icons
-
       - name: Subir APK
         uses: actions/upload-artifact@v4
         with:
