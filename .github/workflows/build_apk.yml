@@ -26,7 +26,7 @@ jobs:
           ZIP=$(find . -name "*.zip" | head -1)
           echo "ZIP encontrado: $ZIP"
           unzip "$ZIP"
-          cp -r class_tracker_app/. .
+          
 
       - name: Instalar dependencias
         run: flutter pub get
