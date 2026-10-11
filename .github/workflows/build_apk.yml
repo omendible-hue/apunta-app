@@ -32,13 +32,12 @@ jobs:
 
       - name: Diagnostico v1 embedding
         run: |
-          echo "=== Plugins con PluginRegistry.Registrar (v1) ==="
-          find ~/.pub-cache -name "*.java" -exec grep -l "PluginRegistry.Registrar" {} \; 2>/dev/null || true
-          find ~/.pub-cache -name "*.kt" -exec grep -l "PluginRegistry.Registrar" {} \; 2>/dev/null || true
+          echo "=== Plugins con androidPackage (formato v1) ==="
+          grep -rl "androidPackage:" ~/.pub-cache/hosted/ 2>/dev/null | grep "pubspec.yaml" || echo "Ninguno"
           echo "=== Fin diagnostico ==="
 
       - name: Compilar APK
-        run: flutter build apk --debug --no-tree-shake-icons --verbose 2>&1 | grep -E "v1 embedding|Registrar|plugin|ERROR|error" || flutter build apk --debug --no-tree-shake-icons
+        run: flutter build apk --debug --no-tree-shake-icons
 
       - name: Subir APK
         uses: actions/upload-artifact@v4
