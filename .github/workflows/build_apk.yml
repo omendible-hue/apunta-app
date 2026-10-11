@@ -30,11 +30,19 @@ jobs:
       - name: Instalar dependencias
         run: flutter pub get
 
-      - name: Diagnostico v1 embedding
+      - name: Diagnostico completo
         run: |
-          echo "=== Plugins con androidPackage (formato v1) ==="
-          grep -rl "androidPackage:" ~/.pub-cache/hosted/ 2>/dev/null | grep "pubspec.yaml" || echo "Ninguno"
-          echo "=== Fin diagnostico ==="
+          echo "=== .flutter-plugins ==="
+          cat .flutter-plugins 2>/dev/null || echo "no existe"
+          echo "=== Plugins Android registrados ==="
+          python3 -c "
+          import json,sys
+          d=json.load(open('.flutter-plugins-dependencies'))
+          for p in d.get('plugins',{}).get('android',[]):
+              print(p['name'], '->', p.get('class','?'))
+          " 2>/dev/null || echo "error parseando"
+          echo "=== Check v1 en Flutter Gradle plugin ==="
+          grep -rn "v1\|deleted\|Registrar\|registerWith" $FLUTTER_ROOT/packages/flutter_tools/gradle/src/main/groovy/FlutterPlugin.groovy 2>/dev/null | grep -i "v1\|deleted" | head -20 || echo "archivo no encontrado o sin matches"
 
       - name: Compilar APK
         run: flutter build apk --debug --no-tree-shake-icons
