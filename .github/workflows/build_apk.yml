@@ -27,40 +27,49 @@ jobs:
           echo "ZIP encontrado: $ZIP"
           unzip -o "$ZIP"
 
+      - name: Limpiar archivos generados del ZIP
+        run: |
+          echo "=== Eliminando GeneratedPluginRegistrant si existe en el ZIP ==="
+          find . -name "GeneratedPluginRegistrant*" -not -path "./.git/*" | while read f; do
+            echo "Eliminando: $f"
+            rm "$f"
+          done
+          echo "=== Sobreescribiendo local.properties con ruta correcta de CI ==="
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          cat android/local.properties
+
+      - name: Flutter clean
+        run: flutter clean
+
       - name: Instalar dependencias
         run: flutter pub get
 
-      - name: Diagnostico plugins JSON completo
+      - name: Diagnostico plugins
         run: |
-          echo "=== .flutter-plugins ==="
-          cat .flutter-plugins 2>/dev/null || echo "no existe"
-          echo ""
-          echo "=== .flutter-plugins-dependencies (raw) ==="
-          python3 -m json.tool .flutter-plugins-dependencies 2>/dev/null || cat .flutter-plugins-dependencies
-          echo ""
-          echo "=== Plugins Android con pluginClass ==="
+          echo "=== supportsEmbeddingV2 por plugin ==="
           python3 -c "
           import json
-          raw = open('.flutter-plugins-dependencies').read()
-          d = json.loads(raw)
+          d = json.load(open('.flutter-plugins-dependencies'))
           plugins = d.get('plugins', {}).get('android', [])
           print(f'Total plugins Android: {len(plugins)}')
+          problemas = []
           for p in plugins:
               nombre = p.get('name','?')
-              clase = p.get('pluginClass') or p.get('class') or p.get('nativePluginClass') or 'AUSENTE'
-              print(f'  {nombre} -> {clase}')
-          " 2>/dev/null || echo "error en python"
+              clase = p.get('pluginClass') or p.get('class') or '???'
+              v2 = p.get('supportsEmbeddingV2', 'campo-ausente')
+              estado = 'OK' if v2 == True else 'PROBLEMA'
+              if v2 != True:
+                  problemas.append(nombre)
+              print(f'  [{estado}] {nombre} -> {clase}  (v2={v2})')
+          if problemas:
+              print(f'PLUGINS CON PROBLEMA: {problemas}')
+          else:
+              print(f'Todos los plugins soportan v2.')
+          "
 
-      - name: Compilar APK verbose
-        run: |
-          flutter build apk --debug --no-tree-shake-icons --verbose 2>&1 | tee /tmp/build.log
-          BUILD_CODE=${PIPESTATUS[0]}
-          if [ $BUILD_CODE -ne 0 ]; then
-            echo ""
-            echo "=== CONTEXTO DEL ERROR ==="
-            grep -n "v1\|deleted\|v2\|embedding\|Error\|FAILED\|Exception\|plugin" /tmp/build.log | tail -60
-            exit $BUILD_CODE
-          fi
+      - name: Compilar APK
+        run: flutter build apk --debug --no-tree-shake-icons
 
       - name: Subir APK
         uses: actions/upload-artifact@v4
