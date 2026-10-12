@@ -35,64 +35,10 @@ jobs:
       - name: Reescribir AndroidManifest.xml garantizado v2
         run: |
           mkdir -p android/app/src/main
-          cat > android/app/src/main/AndroidManifest.xml << 'ENDMANIFEST'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
-              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-              <uses-permission android:name="android.permission.VIBRATE"/>
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-              <application
-                  android:label="Apunta"
-                  android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTop"
-                      android:taskAffinity=""
-                      android:theme="@style/LaunchTheme"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-                      android:hardwareAccelerated="true"
-                      android:windowSoftInputMode="adjustResize">
-                      <meta-data
-                          android:name="io.flutter.embedding.android.NormalTheme"
-                          android:resource="@style/NormalTheme"/>
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <meta-data
-                      android:name="flutterEmbedding"
-                      android:value="2"/>
-                  <service
-                      android:name=".RecordingService"
-                      android:exported="false"
-                      android:foregroundServiceType="microphone"/>
-                  <receiver
-                      android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
-                      android:exported="false"/>
-                  <receiver
-                      android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-                      android:exported="false">
-                      <intent-filter>
-                          <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                          <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
-                          <action android:name="android.intent.action.REBOOT"/>
-                          <action android:name="android.boot.action.QUICKBOOT_POWERON"/>
-                      </intent-filter>
-                  </receiver>
-              </application>
-          </manifest>
-          ENDMANIFEST
-          echo "=== Manifest escrito. Verificando flutterEmbedding: ==="
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLlJFQ09SRF9BVURJTyIvPgogICAgPHVzZXMtcGVybWlzc2lvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQucGVybWlzc2lvbi5GT1JFR1JPVU5EX1NFUlZJQ0UiLz4KICAgIDx1c2VzLXBlcm1pc3Npb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLnBlcm1pc3Npb24uRk9SRUdST1VORF9TRVJWSUNFX01JQ1JPUEhPTkUiLz4KICAgIDx1c2VzLXBlcm1pc3Npb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLnBlcm1pc3Npb24uUkVDRUlWRV9CT09UX0NPTVBMRVRFRCIvPgogICAgPHVzZXMtcGVybWlzc2lvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQucGVybWlzc2lvbi5WSUJSQVRFIi8+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLklOVEVSTkVUIi8+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLlBPU1RfTk9USUZJQ0FUSU9OUyIvPgogICAgPHVzZXMtcGVybWlzc2lvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQucGVybWlzc2lvbi5SRUFEX0VYVEVSTkFMX1NUT1JBR0UiLz4KICAgIDx1c2VzLXBlcm1pc3Npb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLnBlcm1pc3Npb24uV1JJVEVfRVhURVJOQUxfU1RPUkFHRSIvPgogICAgPGFwcGxpY2F0aW9uCiAgICAgICAgYW5kcm9pZDpsYWJlbD0iQXB1bnRhIgogICAgICAgIGFuZHJvaWQ6bmFtZT0iJHthcHBsaWNhdGlvbk5hbWV9IgogICAgICAgIGFuZHJvaWQ6aWNvbj0iQG1pcG1hcC9pY19sYXVuY2hlciI+CiAgICAgICAgPGFjdGl2aXR5CiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iLk1haW5BY3Rpdml0eSIKICAgICAgICAgICAgYW5kcm9pZDpleHBvcnRlZD0idHJ1ZSIKICAgICAgICAgICAgYW5kcm9pZDpsYXVuY2hNb2RlPSJzaW5nbGVUb3AiCiAgICAgICAgICAgIGFuZHJvaWQ6dGFza0FmZmluaXR5PSIiCiAgICAgICAgICAgIGFuZHJvaWQ6dGhlbWU9IkBzdHlsZS9MYXVuY2hUaGVtZSIKICAgICAgICAgICAgYW5kcm9pZDpjb25maWdDaGFuZ2VzPSJvcmllbnRhdGlvbnxrZXlib2FyZEhpZGRlbnxrZXlib2FyZHxzY3JlZW5TaXplfHNtYWxsZXN0U2NyZWVuU2l6ZXxsb2NhbGV8bGF5b3V0RGlyZWN0aW9ufGZvbnRTY2FsZXxzY3JlZW5MYXlvdXR8ZGVuc2l0eXx1aU1vZGUiCiAgICAgICAgICAgIGFuZHJvaWQ6aGFyZHdhcmVBY2NlbGVyYXRlZD0idHJ1ZSIKICAgICAgICAgICAgYW5kcm9pZDp3aW5kb3dTb2Z0SW5wdXRNb2RlPSJhZGp1c3RSZXNpemUiPgogICAgICAgICAgICA8bWV0YS1kYXRhCiAgICAgICAgICAgICAgICBhbmRyb2lkOm5hbWU9ImlvLmZsdXR0ZXIuZW1iZWRkaW5nLmFuZHJvaWQuTm9ybWFsVGhlbWUiCiAgICAgICAgICAgICAgICBhbmRyb2lkOnJlc291cmNlPSJAc3R5bGUvTm9ybWFsVGhlbWUiLz4KICAgICAgICAgICAgPGludGVudC1maWx0ZXI+CiAgICAgICAgICAgICAgICA8YWN0aW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuYWN0aW9uLk1BSU4iLz4KICAgICAgICAgICAgICAgIDxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIi8+CiAgICAgICAgICAgIDwvaW50ZW50LWZpbHRlcj4KICAgICAgICA8L2FjdGl2aXR5PgogICAgICAgIDxtZXRhLWRhdGEKICAgICAgICAgICAgYW5kcm9pZDpuYW1lPSJmbHV0dGVyRW1iZWRkaW5nIgogICAgICAgICAgICBhbmRyb2lkOnZhbHVlPSIyIi8+CiAgICAgICAgPHNlcnZpY2UKICAgICAgICAgICAgYW5kcm9pZDpuYW1lPSIuUmVjb3JkaW5nU2VydmljZSIKICAgICAgICAgICAgYW5kcm9pZDpleHBvcnRlZD0iZmFsc2UiCiAgICAgICAgICAgIGFuZHJvaWQ6Zm9yZWdyb3VuZFNlcnZpY2VUeXBlPSJtaWNyb3Bob25lIi8+CiAgICAgICAgPHJlY2VpdmVyCiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iY29tLmRleHRlcm91cy5mbHV0dGVybG9jYWxub3RpZmljYXRpb25zLlNjaGVkdWxlZE5vdGlmaWNhdGlvblJlY2VpdmVyIgogICAgICAgICAgICBhbmRyb2lkOmV4cG9ydGVkPSJmYWxzZSIvPgogICAgICAgIDxyZWNlaXZlcgogICAgICAgICAgICBhbmRyb2lkOm5hbWU9ImNvbS5kZXh0ZXJvdXMuZmx1dHRlcmxvY2Fsbm90aWZpY2F0aW9ucy5TY2hlZHVsZWROb3RpZmljYXRpb25Cb290UmVjZWl2ZXIiCiAgICAgICAgICAgIGFuZHJvaWQ6ZXhwb3J0ZWQ9ImZhbHNlIj4KICAgICAgICAgICAgPGludGVudC1maWx0ZXI+CiAgICAgICAgICAgICAgICA8YWN0aW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuYWN0aW9uLkJPT1RfQ09NUExFVEVEIi8+CiAgICAgICAgICAgICAgICA8YWN0aW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuYWN0aW9uLk1ZX1BBQ0tBR0VfUkVQTEFDRUQiLz4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uUkVCT09UIi8+CiAgICAgICAgICAgICAgICA8YWN0aW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5ib290LmFjdGlvbi5RVUlDS0JPT1RfUE9XRVJPTiIvPgogICAgICAgICAgICA8L2ludGVudC1maWx0ZXI+CiAgICAgICAgPC9yZWNlaXZlcj4KICAgIDwvYXBwbGljYXRpb24+CjwvbWFuaWZlc3Q+Cg==" | base64 -d > android/app/src/main/AndroidManifest.xml
+          echo "=== Manifest escrito. Verificando: ==="
           grep "flutterEmbedding" android/app/src/main/AndroidManifest.xml
+          cat android/app/src/main/AndroidManifest.xml
 
       - name: Flutter clean y pub get
         run: |
