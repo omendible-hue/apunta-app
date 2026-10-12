@@ -37,11 +37,28 @@ jobs:
           DART_FILE=$(find /opt/hostedtoolcache -name "project.dart" -path "*/flutter_tools/lib/src/*" 2>/dev/null | head -1)
           echo "Archivo encontrado: $DART_FILE"
           sed -i "/throwToolExit.*deleted Android v1 embedding/d" "$DART_FILE"
-          echo "=== Verificando que el throwToolExit fue eliminado ==="
-          grep -n "v1 embedding" "$DART_FILE" || echo "Linea eliminada correctamente"
           find /opt/hostedtoolcache -name "flutter_tools.snapshot" -delete 2>/dev/null || true
           find /opt/hostedtoolcache -name "flutter_tools.stamp" -delete 2>/dev/null || true
-          echo "Snapshot eliminado, Flutter recompilara las herramientas"
+          echo "Patch aplicado"
+
+      - name: Corregir duplicados en ai_service.dart
+        run: |
+          python3 -c "
+          with open('lib/services/ai_service.dart', 'r') as f:
+              lines = f.readlines()
+          count = 0
+          cut = len(lines)
+          for i, line in enumerate(lines):
+              if 'class AIService' in line and '{' in line:
+                  count += 1
+                  if count == 2:
+                      cut = i
+                      break
+          print(f'Total lineas: {len(lines)}, cortando en linea: {cut}')
+          with open('lib/services/ai_service.dart', 'w') as f:
+              f.writelines(lines[:cut])
+          print('Archivo corregido')
+          "
 
       - name: Flutter clean y pub get
         run: |
