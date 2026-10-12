@@ -35,10 +35,11 @@ jobs:
       - name: Eliminar chequeo v1 embedding de Flutter tools
         run: |
           DART_FILE=$(find /opt/hostedtoolcache -name "project.dart" -path "*/flutter_tools/lib/src/*" 2>/dev/null | head -1)
+          echo "Archivo encontrado: $DART_FILE"
           sed -i "/throwToolExit.*deleted Android v1 embedding/d" "$DART_FILE"
           find /opt/hostedtoolcache -name "flutter_tools.snapshot" -delete 2>/dev/null || true
           find /opt/hostedtoolcache -name "flutter_tools.stamp" -delete 2>/dev/null || true
-          echo "Patch v1 aplicado"
+          echo "Patch aplicado"
 
       - name: Corregir duplicados en ai_service.dart
         run: |
@@ -53,9 +54,10 @@ jobs:
                   if count == 2:
                       cut = i
                       break
-          print(f'Cortando ai_service.dart en linea {cut} de {len(lines)}')
+          print(f'Total lineas: {len(lines)}, cortando en linea: {cut}')
           with open('lib/services/ai_service.dart', 'w') as f:
               f.writelines(lines[:cut])
+          print('Archivo corregido')
           "
 
       - name: Corregir DropdownButtonFormField initialValue a value
@@ -92,6 +94,33 @@ jobs:
                       with open(path, 'w', encoding='utf-8') as f:
                           f.write('\n'.join(result))
                       print(f'Corregido: {path}')
+          "
+
+      - name: Habilitar desugaring en build.gradle
+        run: |
+          python3 -c "
+          with open('android/app/build.gradle', 'r') as f:
+              content = f.read()
+          if 'coreLibraryDesugaringEnabled' not in content:
+              content = content.replace(
+                  'compileOptions {',
+                  'compileOptions {\n        coreLibraryDesugaringEnabled true'
+              )
+              print('coreLibraryDesugaringEnabled agregado')
+          else:
+              print('coreLibraryDesugaringEnabled ya existe')
+          if 'desugar_jdk_libs' not in content:
+              content = content.replace(
+                  'dependencies {',
+                  'dependencies {\n    coreLibraryDesugaring \"com.android.tools:desugar_jdk_libs:2.0.4\"',
+                  1
+              )
+              print('desugar_jdk_libs agregado')
+          else:
+              print('desugar_jdk_libs ya existe')
+          with open('android/app/build.gradle', 'w') as f:
+              f.write(content)
+          print('build.gradle listo')
           "
 
       - name: Flutter clean y pub get
