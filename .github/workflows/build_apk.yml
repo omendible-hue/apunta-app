@@ -30,22 +30,37 @@ jobs:
       - name: Instalar dependencias
         run: flutter pub get
 
-      - name: Diagnostico completo
+      - name: Diagnostico plugins JSON completo
         run: |
           echo "=== .flutter-plugins ==="
           cat .flutter-plugins 2>/dev/null || echo "no existe"
-          echo "=== Plugins Android registrados ==="
+          echo ""
+          echo "=== .flutter-plugins-dependencies (raw) ==="
+          python3 -m json.tool .flutter-plugins-dependencies 2>/dev/null || cat .flutter-plugins-dependencies
+          echo ""
+          echo "=== Plugins Android con pluginClass ==="
           python3 -c "
-          import json,sys
-          d=json.load(open('.flutter-plugins-dependencies'))
-          for p in d.get('plugins',{}).get('android',[]):
-              print(p['name'], '->', p.get('class','?'))
-          " 2>/dev/null || echo "error parseando"
-          echo "=== Check v1 en Flutter Gradle plugin ==="
-          grep -rn "v1\|deleted\|Registrar\|registerWith" $FLUTTER_ROOT/packages/flutter_tools/gradle/src/main/groovy/FlutterPlugin.groovy 2>/dev/null | grep -i "v1\|deleted" | head -20 || echo "archivo no encontrado o sin matches"
+          import json
+          raw = open('.flutter-plugins-dependencies').read()
+          d = json.loads(raw)
+          plugins = d.get('plugins', {}).get('android', [])
+          print(f'Total plugins Android: {len(plugins)}')
+          for p in plugins:
+              nombre = p.get('name','?')
+              clase = p.get('pluginClass') or p.get('class') or p.get('nativePluginClass') or 'AUSENTE'
+              print(f'  {nombre} -> {clase}')
+          " 2>/dev/null || echo "error en python"
 
-      - name: Compilar APK
-        run: flutter build apk --debug --no-tree-shake-icons
+      - name: Compilar APK verbose
+        run: |
+          flutter build apk --debug --no-tree-shake-icons --verbose 2>&1 | tee /tmp/build.log
+          BUILD_CODE=${PIPESTATUS[0]}
+          if [ $BUILD_CODE -ne 0 ]; then
+            echo ""
+            echo "=== CONTEXTO DEL ERROR ==="
+            grep -n "v1\|deleted\|v2\|embedding\|Error\|FAILED\|Exception\|plugin" /tmp/build.log | tail -60
+            exit $BUILD_CODE
+          fi
 
       - name: Subir APK
         uses: actions/upload-artifact@v4
