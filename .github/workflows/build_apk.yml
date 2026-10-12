@@ -101,23 +101,17 @@ jobs:
           python3 -c "
           with open('android/app/build.gradle', 'r') as f:
               content = f.read()
+          # Activar flag en compileOptions
           if 'coreLibraryDesugaringEnabled' not in content:
               content = content.replace(
                   'compileOptions {',
                   'compileOptions {\n        coreLibraryDesugaringEnabled true'
               )
-              print('coreLibraryDesugaringEnabled agregado')
-          else:
-              print('coreLibraryDesugaringEnabled ya existe')
+              print('Flag activado')
+          # Agregar dependencia al FINAL del archivo (evita problemas de busqueda)
           if 'desugar_jdk_libs' not in content:
-              content = content.replace(
-                  'dependencies {',
-                  'dependencies {\n    coreLibraryDesugaring \"com.android.tools:desugar_jdk_libs:2.0.4\"',
-                  1
-              )
-              print('desugar_jdk_libs agregado')
-          else:
-              print('desugar_jdk_libs ya existe')
+              content = content.rstrip() + '\ndependencies {\n    coreLibraryDesugaring \"com.android.tools:desugar_jdk_libs:2.0.4\"\n}\n'
+              print('Dependencia agregada al final')
           with open('android/app/build.gradle', 'w') as f:
               f.write(content)
           print('build.gradle listo')
