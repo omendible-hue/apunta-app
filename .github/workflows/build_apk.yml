@@ -18,7 +18,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
+          flutter-version: '3.29.3'
           channel: 'stable'
 
       - name: Extraer proyecto del ZIP
@@ -27,46 +27,17 @@ jobs:
           echo "ZIP encontrado: $ZIP"
           unzip -o "$ZIP"
 
-      - name: Limpiar archivos generados del ZIP
+      - name: Preparar local.properties
         run: |
-          echo "=== Eliminando GeneratedPluginRegistrant si existe en el ZIP ==="
-          find . -name "GeneratedPluginRegistrant*" -not -path "./.git/*" | while read f; do
-            echo "Eliminando: $f"
-            rm "$f"
-          done
-          echo "=== Sobreescribiendo local.properties con ruta correcta de CI ==="
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-          cat android/local.properties
+          echo "=== Manifest flutterEmbedding ==="
+          grep -A1 "flutterEmbedding" android/app/src/main/AndroidManifest.xml || echo "NO ENCONTRADO"
 
-      - name: Flutter clean
-        run: flutter clean
-
-      - name: Instalar dependencias
-        run: flutter pub get
-
-      - name: Diagnostico plugins
+      - name: Flutter clean y pub get
         run: |
-          echo "=== supportsEmbeddingV2 por plugin ==="
-          python3 -c "
-          import json
-          d = json.load(open('.flutter-plugins-dependencies'))
-          plugins = d.get('plugins', {}).get('android', [])
-          print(f'Total plugins Android: {len(plugins)}')
-          problemas = []
-          for p in plugins:
-              nombre = p.get('name','?')
-              clase = p.get('pluginClass') or p.get('class') or '???'
-              v2 = p.get('supportsEmbeddingV2', 'campo-ausente')
-              estado = 'OK' if v2 == True else 'PROBLEMA'
-              if v2 != True:
-                  problemas.append(nombre)
-              print(f'  [{estado}] {nombre} -> {clase}  (v2={v2})')
-          if problemas:
-              print(f'PLUGINS CON PROBLEMA: {problemas}')
-          else:
-              print(f'Todos los plugins soportan v2.')
-          "
+          flutter clean
+          flutter pub get
 
       - name: Compilar APK
         run: flutter build apk --debug --no-tree-shake-icons
