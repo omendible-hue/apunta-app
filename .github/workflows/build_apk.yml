@@ -35,11 +35,10 @@ jobs:
       - name: Eliminar chequeo v1 embedding de Flutter tools
         run: |
           DART_FILE=$(find /opt/hostedtoolcache -name "project.dart" -path "*/flutter_tools/lib/src/*" 2>/dev/null | head -1)
-          echo "Archivo encontrado: $DART_FILE"
           sed -i "/throwToolExit.*deleted Android v1 embedding/d" "$DART_FILE"
           find /opt/hostedtoolcache -name "flutter_tools.snapshot" -delete 2>/dev/null || true
           find /opt/hostedtoolcache -name "flutter_tools.stamp" -delete 2>/dev/null || true
-          echo "Patch aplicado"
+          echo "Patch v1 aplicado"
 
       - name: Corregir duplicados en ai_service.dart
         run: |
@@ -54,10 +53,45 @@ jobs:
                   if count == 2:
                       cut = i
                       break
-          print(f'Total lineas: {len(lines)}, cortando en linea: {cut}')
+          print(f'Cortando ai_service.dart en linea {cut} de {len(lines)}')
           with open('lib/services/ai_service.dart', 'w') as f:
               f.writelines(lines[:cut])
-          print('Archivo corregido')
+          "
+
+      - name: Corregir DropdownButtonFormField initialValue a value
+        run: |
+          python3 -c "
+          import os
+          for root, dirs, files in os.walk('lib'):
+              for fname in files:
+                  if not fname.endswith('.dart'):
+                      continue
+                  path = os.path.join(root, fname)
+                  with open(path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+                  if 'DropdownButtonFormField' not in content:
+                      continue
+                  lines = content.split('\n')
+                  result = []
+                  in_dropdown = False
+                  depth = 0
+                  changed = False
+                  for line in lines:
+                      if 'DropdownButtonFormField' in line:
+                          in_dropdown = True
+                          depth = line.count('(') - line.count(')')
+                      elif in_dropdown:
+                          depth += line.count('(') - line.count(')')
+                          if depth <= 0:
+                              in_dropdown = False
+                      if in_dropdown and 'initialValue:' in line:
+                          line = line.replace('initialValue:', 'value:')
+                          changed = True
+                      result.append(line)
+                  if changed:
+                      with open(path, 'w', encoding='utf-8') as f:
+                          f.write('\n'.join(result))
+                      print(f'Corregido: {path}')
           "
 
       - name: Flutter clean y pub get
