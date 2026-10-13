@@ -32,6 +32,9 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
 
+      - name: Mostrar dependencias del proyecto
+        run: cat pubspec.yaml
+
       - name: Eliminar chequeo v1 embedding de Flutter tools
         run: |
           DART_FILE=$(find /opt/hostedtoolcache -name "project.dart" -path "*/flutter_tools/lib/src/*" 2>/dev/null | head -1)
@@ -106,10 +109,8 @@ jobs:
                   'compileOptions {',
                   'compileOptions {\n        coreLibraryDesugaringEnabled true'
               )
-              print('Flag activado')
           if 'desugar_jdk_libs' not in content:
               content = content.rstrip() + '\ndependencies {\n    coreLibraryDesugaring \"com.android.tools:desugar_jdk_libs:2.0.4\"\n}\n'
-              print('Dependencia agregada')
           with open('android/app/build.gradle', 'w') as f:
               f.write(content)
           print('build.gradle listo')
@@ -125,18 +126,15 @@ jobs:
                   'android {',
                   'android {\n    ndkVersion \"26.3.11579264\"'
               )
-              print('ndkVersion agregado')
-          else:
-              print('ndkVersion ya existe')
           with open('android/app/build.gradle', 'w') as f:
               f.write(content)
+          print('ndkVersion listo')
           "
 
       - name: Generar iconos de launcher faltantes
         run: |
           python3 -c "
           import struct, zlib, os
-
           def make_png(width, height, color=(66, 133, 244)):
               def chunk(name, data):
                   c = struct.pack('>I', len(data)) + name + data
@@ -149,14 +147,7 @@ jobs:
               idat = chunk(b'IDAT', zlib.compress(raw))
               iend = chunk(b'IEND', b'')
               return sig + ihdr + idat + iend
-
-          sizes = {
-              'mipmap-mdpi': 48,
-              'mipmap-hdpi': 72,
-              'mipmap-xhdpi': 96,
-              'mipmap-xxhdpi': 144,
-              'mipmap-xxxhdpi': 192,
-          }
+          sizes = {'mipmap-mdpi':48,'mipmap-hdpi':72,'mipmap-xhdpi':96,'mipmap-xxhdpi':144,'mipmap-xxxhdpi':192}
           base = 'android/app/src/main/res'
           for folder, size in sizes.items():
               path = os.path.join(base, folder)
@@ -168,8 +159,6 @@ jobs:
                       with open(fpath, 'wb') as f:
                           f.write(png)
                       print(f'Creado: {folder}/{name}')
-                  else:
-                      print(f'Ya existe: {folder}/{name}')
           "
 
       - name: Flutter clean y pub get
@@ -177,11 +166,36 @@ jobs:
           flutter clean
           flutter pub get
 
-      - name: Mostrar build.gradle final
-        run: cat android/app/build.gradle
+      - name: Corregir namespace en plugins para AGP 8
+        run: |
+          find $HOME/.pub-cache/hosted -name "build.gradle" 2>/dev/null | while read gradle_file; do
+            if grep -q "com.android.library\|com.android.application" "$gradle_file" 2>/dev/null && \
+               ! grep -q "namespace" "$gradle_file" 2>/dev/null; then
+              dir=$(dirname "$gradle_file")
+              manifest=$(find "$dir" -name "AndroidManifest.xml" 2>/dev/null | head -1)
+              if [ -n "$manifest" ]; then
+                pkg=$(grep -o 'package="[^"]*"' "$manifest" 2>/dev/null | head -1 | sed 's/package="\(.*\)"/\1/')
+                if [ -n "$pkg" ]; then
+                  sed -i "s/android {/android {\n    namespace '$pkg'/" "$gradle_file"
+                  echo "Namespace '$pkg' -> $gradle_file"
+                fi
+              fi
+            fi
+          done
+          echo "Revision completa"
 
       - name: Compilar APK
-        run: flutter build apk --debug --no-tree-shake-icons --verbose
+        run: |
+          flutter build apk --debug --no-tree-shake-icons 2>&1 | tee /tmp/build.log
+          BUILD_RESULT=${PIPESTATUS[0]}
+          if [ $BUILD_RESULT -ne 0 ]; then
+            echo ""
+            echo "====== ERRORES ======"
+            grep -E "(error:|FAILURE|Exception|> Could|> A failure|What went wrong)" /tmp/build.log \
+              | grep -v "Artifact.*not required\|skipping update\|JAVA_HOME\|PUB_CACHE\|flutter_tools\|^\[" \
+              | head -60
+          fi
+          exit $BUILD_RESULT
 
       - name: Subir APK
         uses: actions/upload-artifact@v4
