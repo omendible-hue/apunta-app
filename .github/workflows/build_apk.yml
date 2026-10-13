@@ -32,9 +32,6 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
 
-      - name: Mostrar dependencias del proyecto
-        run: cat pubspec.yaml
-
       - name: Eliminar chequeo v1 embedding de Flutter tools
         run: |
           DART_FILE=$(find /opt/hostedtoolcache -name "project.dart" -path "*/flutter_tools/lib/src/*" 2>/dev/null | head -1)
@@ -135,7 +132,7 @@ jobs:
         run: |
           python3 -c "
           import struct, zlib, os
-          def make_png(width, height, color=(66, 133, 244)):
+          def make_png(width, height, color=(103, 58, 183)):
               def chunk(name, data):
                   c = struct.pack('>I', len(data)) + name + data
                   return c + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
@@ -159,6 +156,14 @@ jobs:
                       with open(fpath, 'wb') as f:
                           f.write(png)
                       print(f'Creado: {folder}/{name}')
+          # Crear asset Flutter que referencia pubspec.yaml
+          os.makedirs('assets/icon', exist_ok=True)
+          if not os.path.exists('assets/icon/app_icon.png'):
+              with open('assets/icon/app_icon.png', 'wb') as f:
+                  f.write(make_png(1024, 1024))
+              print('Creado: assets/icon/app_icon.png')
+          else:
+              print('assets/icon/app_icon.png ya existe')
           "
 
       - name: Flutter clean y pub get
@@ -177,7 +182,7 @@ jobs:
                 pkg=$(grep -o 'package="[^"]*"' "$manifest" 2>/dev/null | head -1 | sed 's/package="\(.*\)"/\1/')
                 if [ -n "$pkg" ]; then
                   sed -i "s/android {/android {\n    namespace '$pkg'/" "$gradle_file"
-                  echo "Namespace '$pkg' -> $gradle_file"
+                  echo "Namespace '$pkg' -> $(basename $(dirname $gradle_file))"
                 fi
               fi
             fi
@@ -191,7 +196,7 @@ jobs:
           if [ $BUILD_RESULT -ne 0 ]; then
             echo ""
             echo "====== ERRORES ======"
-            grep -E "(error:|FAILURE|Exception|> Could|> A failure|What went wrong)" /tmp/build.log \
+            grep -E "(error:|FAILURE|Exception|> Could|> A failure|What went wrong|unable to find)" /tmp/build.log \
               | grep -v "Artifact.*not required\|skipping update\|JAVA_HOME\|PUB_CACHE\|flutter_tools\|^\[" \
               | head -60
           fi
