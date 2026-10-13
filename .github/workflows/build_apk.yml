@@ -115,6 +115,23 @@ jobs:
           print('build.gradle listo')
           "
 
+      - name: Fijar version NDK en build.gradle
+        run: |
+          python3 -c "
+          with open('android/app/build.gradle', 'r') as f:
+              content = f.read()
+          if 'ndkVersion' not in content:
+              content = content.replace(
+                  'android {',
+                  'android {\n    ndkVersion \"26.3.11579264\"'
+              )
+              print('ndkVersion agregado')
+          else:
+              print('ndkVersion ya existe')
+          with open('android/app/build.gradle', 'w') as f:
+              f.write(content)
+          "
+
       - name: Generar iconos de launcher faltantes
         run: |
           python3 -c "
@@ -160,8 +177,11 @@ jobs:
           flutter clean
           flutter pub get
 
+      - name: Mostrar build.gradle final
+        run: cat android/app/build.gradle
+
       - name: Compilar APK
-        run: flutter build apk --debug --no-tree-shake-icons
+        run: flutter build apk --debug --no-tree-shake-icons --verbose
 
       - name: Subir APK
         uses: actions/upload-artifact@v4
