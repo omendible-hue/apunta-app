@@ -24,7 +24,6 @@ jobs:
       - name: Extraer proyecto del ZIP
         run: |
           ZIP=$(find . -name "*.zip" | head -1)
-          echo "ZIP encontrado: $ZIP"
           unzip -o "$ZIP"
 
       - name: Preparar local.properties
@@ -35,12 +34,12 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Parchear chequeo v1 embedding
+      - name: Parchear flutter_local_notifications v1 embedding
         run: |
-          FLUTTER_BIN=$(which flutter)
-          FLUTTER_DIR=$(dirname $(dirname $FLUTTER_BIN))
-          find "$FLUTTER_DIR" -name "*.dart" -exec grep -l "v1Embedding\|v1 embedding" {} \; 2>/dev/null | while read f; do
-            sed -i '/throwToolExit.*[Vv]1.*[Ee]mbedding/d' "$f" || true
+          find ~/.pub-cache -path "*/flutter_local_notifications*" -name "*.java" -exec grep -l "PluginRegistry\|io.flutter.plugin.common.PluginRegistry" {} \; 2>/dev/null | while read f; do
+            echo "Parcheando $f"
+            sed -i 's/implements PluginRegistry.Registrar/\/\/ implements PluginRegistry.Registrar/g' "$f" || true
+            sed -i '/PluginRegistry\.Registrar/d' "$f" || true
           done
 
       - name: Compilar APK
