@@ -24,12 +24,19 @@ jobs:
       - name: Extraer proyecto del ZIP
         run: |
           ZIP=$(find . -name "*.zip" | head -1)
+          echo "ZIP encontrado: $ZIP"
           unzip -o "$ZIP"
 
       - name: Preparar local.properties
         run: |
           mkdir -p android
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+      - name: Actualizar Gradle a 8.7
+        run: |
+          sed -i 's|gradle-[0-9.]*-all\.zip|gradle-8.7-all.zip|g' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's|gradle-[0-9.]*-bin\.zip|gradle-8.7-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
+          cat android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Parchear v1 embedding
         run: |
