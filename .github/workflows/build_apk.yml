@@ -34,9 +34,11 @@ jobs:
 
       - name: Actualizar Gradle a 8.7
         run: |
-          sed -i 's|gradle-[0-9.]*-all\.zip|gradle-8.7-all.zip|g' android/gradle/wrapper/gradle-wrapper.properties
-          sed -i 's|gradle-[0-9.]*-bin\.zip|gradle-8.7-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
-          cat android/gradle/wrapper/gradle-wrapper.properties
+          GRADLE_PROPS=$(find . -name "gradle-wrapper.properties" | head -1)
+          echo "Encontrado: $GRADLE_PROPS"
+          sed -i 's|gradle-[0-9.]*-all\.zip|gradle-8.7-all.zip|g' "$GRADLE_PROPS"
+          sed -i 's|gradle-[0-9.]*-bin\.zip|gradle-8.7-bin.zip|g' "$GRADLE_PROPS"
+          cat "$GRADLE_PROPS"
 
       - name: Parchear v1 embedding
         run: |
