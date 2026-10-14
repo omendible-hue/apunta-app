@@ -31,18 +31,13 @@ jobs:
           mkdir -p android
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
-      - name: Parchear v1 embedding y borrar snapshot
+      - name: Parchear v1 embedding
         run: |
           FLUTTER_ROOT=/opt/hostedtoolcache/flutter/stable-3.24.3-x64/flutter
-          find "$FLUTTER_ROOT/packages/flutter_tools" -name "*.dart" \
-            -exec grep -l "deleted Android v1\|v1EmbeddingSupport\|v1 embedding" {} \; \
-            2>/dev/null | while read f; do
-              echo "Parcheando: $f"
-              sed -i '/throwToolExit.*[Vv]1.*[Ee]mbedding/d' "$f" || true
-              sed -i 's/Build failed due to use of deleted Android v1 embedding/Skipping v1 check/g' "$f" || true
+          find "$FLUTTER_ROOT/packages/flutter_tools" -name "*.dart" | xargs grep -l "v1" 2>/dev/null | while read f; do
+            perl -i -0pe 's/throwToolExit\s*\(\s*[^)]*[Vv]1[^)]*\s*\)\s*;//gs' "$f" || true
           done
           rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot"
-          echo "Snapshot borrado — Flutter recompilará desde fuente parcheada"
 
       - name: Flutter pub get
         run: flutter pub get
