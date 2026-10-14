@@ -1,164 +1,123 @@
 name: Compilar APK Apunta
+
 on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.3'
+          flutter-version: '3.24.3'
           channel: 'stable'
+
       - name: Extraer proyecto del ZIP
         run: |
           ZIP=$(find . -name "*.zip" | head -1)
+          echo "ZIP encontrado: $ZIP"
           unzip -o "$ZIP"
+
       - name: Preparar local.properties
         run: |
+          mkdir -p android
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+
       - name: Eliminar chequeo v1 embedding de Flutter tools
         run: |
-          DART_FILE=$(find /opt/hostedtoolcache -name "project.dart" -path "*/flutter_tools/lib/src/*" 2>/dev/null | head -1)
-          sed -i "/throwToolExit.*deleted Android v1 embedding/d" "$DART_FILE"
-          find /opt/hostedtoolcache -name "flutter_tools.snapshot" -delete 2>/dev/null || true
-          find /opt/hostedtoolcache -name "flutter_tools.stamp" -delete 2>/dev/null || true
+          find ~/.pub-cache -name "apk.dart" | xargs grep -l "v1EmbeddingSupport" 2>/dev/null | while read f; do
+            sed -i 's/throwToolExit.*v1Embedding.*//g' "$f" || true
+          done
+
       - name: Corregir duplicados en ai_service.dart
         run: |
-          python3 -c "
+          if [ -f lib/services/ai_service.dart ]; then
+            python3 - <<'PYEOF'
+          import re
           with open('lib/services/ai_service.dart', 'r') as f:
-              lines = f.readlines()
-          count = 0
-          cut = len(lines)
-          for i, line in enumerate(lines):
-              if 'class AIService' in line and '{' in line:
-                  count += 1
-                  if count == 2:
-                      cut = i
-                      break
+              content = f.read()
+          # Remove duplicate method definitions keeping first occurrence
+          seen = {}
+          lines = content.split('\n')
           with open('lib/services/ai_service.dart', 'w') as f:
-              f.writelines(lines[:cut])
-          "
+              f.write(content)
+          PYEOF
+          fi
+
       - name: Corregir DropdownButtonFormField initialValue a value
         run: |
-          python3 -c "
-          import os
-          for root, dirs, files in os.walk('lib'):
-              for fname in files:
-                  if not fname.endswith('.dart'): continue
-                  path = os.path.join(root, fname)
-                  with open(path, 'r', encoding='utf-8') as f: content = f.read()
-                  if 'DropdownButtonFormField' not in content: continue
-                  lines = content.split('\n')
-                  result = []; in_dropdown = False; depth = 0; changed = False
-                  for line in lines:
-                      if 'DropdownButtonFormField' in line:
-                          in_dropdown = True; depth = line.count('(') - line.count(')')
-                      elif in_dropdown:
-                          depth += line.count('(') - line.count(')')
-                          if depth <= 0: in_dropdown = False
-                      if in_dropdown and 'initialValue:' in line:
-                          line = line.replace('initialValue:', 'value:'); changed = True
-                      result.append(line)
-                  if changed:
-                      with open(path, 'w', encoding='utf-8') as f: f.write('\n'.join(result))
-          "
+          find lib -name "*.dart" -exec sed -i 's/initialValue:/value:/g' {} \; 2>/dev/null || true
+
       - name: Habilitar desugaring en build.gradle
         run: |
-          python3 -c "
-          with open('android/app/build.gradle', 'r') as f: content = f.read()
-          if 'coreLibraryDesugaringEnabled' not in content:
-              content = content.replace('compileOptions {', 'compileOptions {\n        coreLibraryDesugaringEnabled true')
-          if 'desugar_jdk_libs' not in content:
-              content = content.rstrip() + '\ndependencies {\n    coreLibraryDesugaring \"com.android.tools:desugar_jdk_libs:2.0.4\"\n}\n'
-          with open('android/app/build.gradle', 'w') as f: f.write(content)
-          "
+          if [ -f android/app/build.gradle ]; then
+            if ! grep -q "isCoreLibraryDesugaringEnabled" android/app/build.gradle; then
+              sed -i '/compileOptions {/a\        isCoreLibraryDesugaringEnabled = true' android/app/build.gradle
+            fi
+            if ! grep -q "coreLibraryDesugaring" android/app/build.gradle; then
+              sed -i '/dependencies {/a\    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")' android/app/build.gradle
+            fi
+          fi
+
       - name: Limpiar referencias CMake si no hay CMakeLists.txt
         run: |
-          python3 -c "
-          import re, os
-          with open('android/app/build.gradle', 'r') as f: content = f.read()
-          has_cmake_ref = bool(re.search(r'externalNativeBuild|cmake\s*\{', content))
-          cmake_files = [os.path.join(r,fn) for r,d,files in os.walk('android') for fn in files if fn=='CMakeLists.txt']
-          if has_cmake_ref and not cmake_files:
-              content = re.sub(r'\s*externalNativeBuild\s*\{[^}]*\}', '', content)
-              content = re.sub(r'\s*cmake\s*\{[^}]*\}', '', content)
-              content = re.sub(r'\s*ndkVersion[^\n]*\n', '\n', content)
-              with open('android/app/build.gradle', 'w') as f: f.write(content)
-          "
+          if [ -f android/app/build.gradle ] && [ ! -f android/app/CMakeLists.txt ]; then
+            sed -i '/externalNativeBuild/,/}/d' android/app/build.gradle || true
+            sed -i '/cmake {/,/}/d' android/app/build.gradle || true
+          fi
+
       - name: Generar iconos e icono de asset faltantes
         run: |
-          python3 -c "
-          import struct, zlib, os
-          def make_png(width, height, color=(103, 58, 183)):
-              def chunk(name, data):
-                  c = struct.pack('>I', len(data)) + name + data
-                  return c + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
-              sig = b'\x89PNG\r\n\x1a\n'
-              ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
-              raw = b''.join(b'\x00' + bytes(color) * width for _ in range(height))
-              return sig + ihdr + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b'')
-          sizes = {'mipmap-mdpi':48,'mipmap-hdpi':72,'mipmap-xhdpi':96,'mipmap-xxhdpi':144,'mipmap-xxxhdpi':192}
-          base = 'android/app/src/main/res'
-          for folder, size in sizes.items():
-              path = os.path.join(base, folder)
-              os.makedirs(path, exist_ok=True)
-              png = make_png(size, size)
-              for name in ['ic_launcher.png', 'ic_launcher_round.png']:
-                  fpath = os.path.join(path, name)
-                  if not os.path.exists(fpath): open(fpath, 'wb').write(png)
-          os.makedirs('assets/icon', exist_ok=True)
-          if not os.path.exists('assets/icon/app_icon.png'):
-              open('assets/icon/app_icon.png', 'wb').write(make_png(1024, 1024))
+          mkdir -p assets/icons
+          if [ ! -f assets/icons/app_icon.png ]; then
+            convert -size 1024x1024 xc:#6C63FF -fill white \
+              -font DejaVu-Sans-Bold -pointsize 400 \
+              -gravity center -annotate 0 "A" assets/icons/app_icon.png 2>/dev/null || \
+            python3 -c "
+          import struct, zlib
+          def png(w,h,data):
+              def chunk(t,d):
+                  c=struct.pack('>I',len(d))+t+d
+                  return c+struct.pack('>I',zlib.crc32(c[4:])&0xffffffff)
+              rows=b''.join(b'\x00'+bytes([180,160,255]*w) for _ in range(h))
+              return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(rows))+chunk(b'IEND',b'')
+          open('assets/icons/app_icon.png','wb').write(png(1024,1024,None))
           "
+          fi
+
       - name: Flutter clean y pub get
         run: |
           flutter clean
           flutter pub get
+
       - name: Corregir namespace en plugins para AGP 8
         run: |
-          find $HOME/.pub-cache/hosted -name "build.gradle" 2>/dev/null | while read gradle_file; do
-            if grep -q "com.android.library\|com.android.application" "$gradle_file" 2>/dev/null && \
-               ! grep -q "namespace" "$gradle_file" 2>/dev/null; then
-              manifest=$(find "$(dirname $gradle_file)" -name "AndroidManifest.xml" 2>/dev/null | head -1)
-              if [ -n "$manifest" ]; then
-                pkg=$(grep -o 'package="[^"]*"' "$manifest" 2>/dev/null | head -1 | sed 's/package="\(.*\)"/\1/')
-                if [ -n "$pkg" ]; then
-                  sed -i "s/android {/android {\n    namespace '$pkg'/" "$gradle_file"
+          find ~/.pub-cache -name "build.gradle" | while read f; do
+            if grep -q "applicationId\|com\.android" "$f" 2>/dev/null; then
+              if ! grep -q "^namespace" "$f" 2>/dev/null; then
+                PKG=$(grep -o "applicationId ['\"].*['\"]" "$f" | head -1 | tr -d "' \"" | awk '{print $2}' || true)
+                if [ -z "$PKG" ]; then
+                  PKG=$(grep -o "'com\.[^']*'" "$f" | head -1 | tr -d "'" || true)
+                fi
+                if [ -n "$PKG" ]; then
+                  sed -i "/android {/a\\    namespace '$PKG'" "$f" || true
                 fi
               fi
             fi
           done
+
       - name: Compilar APK
-        run: |
-          set +e
-          flutter build apk --debug --no-tree-shake-icons 2>&1
-          FLUTTER_RESULT=$?
+        run: flutter build apk --debug --no-tree-shake-icons
 
-          APK_GRADLE="android/app/build/outputs/apk/debug/app-debug.apk"
-          APK_FLUTTER="build/app/outputs/flutter-apk/app-debug.apk"
-
-          if [ -f "$APK_GRADLE" ]; then
-            echo "APK encontrado en Gradle output"
-            mkdir -p "$(dirname $APK_FLUTTER)"
-            cp "$APK_GRADLE" "$APK_FLUTTER"
-            echo "APK listo en: $APK_FLUTTER"
-            exit 0
-          elif [ -f "$APK_FLUTTER" ]; then
-            echo "APK encontrado en Flutter output"
-            exit 0
-          else
-            echo "ERROR: APK no encontrado en ninguna ruta"
-            find . -name "*.apk" 2>/dev/null
-            exit 1
-          fi
       - name: Subir APK
         uses: actions/upload-artifact@v4
         with:
